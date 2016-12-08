@@ -1,4 +1,5 @@
 # generate_3d_data
+# This repository has the code for converting the RTdicom structures into regular Nifti Files
 
 First step is to make sure that we have a folder per patient.
 This patient folder must contain 2 folders: RTstruct and CT.
