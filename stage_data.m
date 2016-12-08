@@ -3,12 +3,14 @@ addpath(genpath('fonctions'))
 %savepath
 
 
-pathScan = '/Users/trullro/Downloads/patient_test'; % to be changed!
+pathScan = '/media/roger/48BCFC2BBCFC1562/dataset/BMD_OESO_BDD_30_60'; % to be changed!
 
 patientList = dir(pathScan); 
-patientList = patientList(4:end);%4 if it is mac, 3 ubuntu
+patientList = patientList(3:end);%4 if it is mac, 3 ubuntu
 
 datasave= {};
+flag_error=false;
+%parfor
 parfor i = 1:size(patientList,1) % Patients iteration
     tmp={};
 
@@ -44,15 +46,27 @@ parfor i = 1:size(patientList,1) % Patients iteration
     idx=[];
     saveflag=false;
     listMasks = {};
-
+    
+    cnt_organs=0;
     for j = 1:size(cellVOI{2,1},1)
-        %if (strcmp(cellVOI{2,1}{j,1},'BMD-Esophagus') || strcmp(cellVOI{2,1}{j,1},'BMD-Heart')|| strcmp(cellVOI{2,1}{j,1},'BMD-Trachea')|| strcmp(cellVOI{2,1}{j,1},'BMD-Aorta'))
-        if (strcmpi(cellVOI{2,1}{j,1},'CONTOUR EXTERNE')|| strcmpi(cellVOI{2,1}{j,1},'body'))
-        listMasks{n,1} = cellVOI{2,1}{j,1};
-        n=n+1;
-        idx=[idx,j];%index of voi
-        saveflag=true;
+          
+        if (strcmp(cellVOI{2,1}{j,1},'BMD-Esophagus') || strcmp(cellVOI{2,1}{j,1},'BMD-Heart') ...
+            || strcmp(cellVOI{2,1}{j,1},'BMD-Trachea')|| strcmp(cellVOI{2,1}{j,1},'BMD-Aorta') ...
+            ||strcmpi(cellVOI{2,1}{j,1},'CONTOUR EXTERNE')|| strcmpi(cellVOI{2,1}{j,1},'body'))
+        %if (strcmpi(cellVOI{2,1}{j,1},'CONTOUR EXTERNE')|| strcmpi(cellVOI{2,1}{j,1},'body'))
+            listMasks{n,1} = cellVOI{2,1}{j,1};
+            n=n+1;
+            idx=[idx,j];%index of voi
+            saveflag=true;
+            cnt_organs=cnt_organs+1;
+                    
         end
+        
+    end
+    
+    if cnt_organs ~= 5% if not exactly 5 tissues
+        disp('Erorr !')
+        %flag_error=true;
         
     end
     
@@ -63,7 +77,11 @@ parfor i = 1:size(patientList,1) % Patients iteration
         masks1{uu,1} = listMasks{uu};
         masks1{uu,2} = VOI;
         for k=1:size(VOI,3)%save the slices
-            imwrite(VOI(:,:,k),strcat(pathPatient,'/',listMasks{uu},sprintf('%d.png',k)))
+            newSubFolder=strcat(pathPatient,'/',listMasks{uu});
+            if ~exist(newSubFolder, 'dir')
+              mkdir(newSubFolder);
+            end
+            imwrite(VOI(:,:,k),strcat(newSubFolder,'/',sprintf('%d.png',k)))
         end
         
         
@@ -76,6 +94,11 @@ parfor i = 1:size(patientList,1) % Patients iteration
     end
     datasave{i}=tmp;
 
+end
+if flag_error
+    disp('there was an error!')
+else
+    disp('all patients are ok')
 end
 delete(gcp('nocreate'))
 save('datasave.mat','datasave')

@@ -7,7 +7,7 @@ Created on Thu Nov 26 14:14:01 2015
 
 import SimpleITK as sitk
 import os 
-#import thresholding1 as thr
+import numpy as np
 
 
 
@@ -85,8 +85,11 @@ def pngs2nii(dirpatients,namefolders):
             volume.SetOrigin(image.GetOrigin())
             volume.SetSpacing(image.GetSpacing())
             volume.SetDirection(image.GetDirection())
-            sitk.WriteImage( volume, os.path.join(dirpatients,patients[i],namefolders[j]+'.nii.gz') )
-            print patients[i]+" done"
+            label=namefolders[j]
+            if namefolders[j]=='body':
+                label='CONTOUR'
+            sitk.WriteImage( volume, os.path.join(dirpatients,patients[i],label+'.nii.gz') )
+            print patients[i],'_',namefolders[j],' done'
             
 def dicom2nii(dirpatients):
 #dirpatients must contain one folder for each patient. These folder must contain a folder
@@ -99,12 +102,62 @@ def dicom2nii(dirpatients):
         image = reader.Execute()           
         sitk.WriteImage( image, os.path.join(dirpatients,patients[i],patients[i]+'.nii.gz') )
         print patients[i]+" done"
+
+
+def merge_labels(dirpatients):
+    """
+    Merge the labels in niftii files to one single file called GT.nii.gz
+
+    """
+    _, patients, _ = os.walk(dirpatients).next()#every folder is a patient
+
+    for namepatient in patients:
+        print namepatient
+        im_eso=sitk.ReadImage(os.path.join(dirpatients,namepatient,'BMD-Esophagus'))
+        im_heart=sitk.ReadImage(os.path.join(dirpatients,namepatient,'BMD-Heart'))
+        im_trachea=sitk.ReadImage(os.path.join(dirpatients,namepatient,'BMD-Trachea'))
+        im_aorta=sitk.ReadImage(os.path.join(dirpatients,namepatient,'BMD-Aorta'))
+
+        im_eso_np=sitk.GetArrayFromImage(im_eso)
+        idx_eso=np.where(im_eso_np>=1)
+        im_heart_np=sitk.GetArrayFromImage(im_heart)
+        idx_heart=np.where(im_heart_np>=1)
+        im_trachea_np=sitk.GetArrayFromImage(im_trachea)
+        idx_trach=np.where(im_trachea_np>=1)
+        im_aorta_np=sitk.GetArrayFromImage(im_aorta)
+        idx_aorta=np.where(im_aorta_np>=1)
+
+        vol_final=np.zeros_like(im_eso_np,dtype=np.uint8)
+        vol_final[idx_eso]=1
+        vol_final[idx_heart]=2
+        vol_final[idx_trach]=3
+        vol_final[idx_aorta]=4
+
+        vol_itk=sitk.GetImageFromArray(vol_final)
+        vol_itk.SetOrigin(im_eso.GetOrigin())
+        vol_itk.SetSpacing(im_eso.GetSpacing())
+        vol_itk.SetDirection(im_eso.GetDirection())
+
+
+        sitk.WriteImage(vol_itk,os.path.join(dirpatients,namepatient,'GT.nii.gz'))
+
+        print namepatient,'done'
+
+
+
+
+
+
+
+
             
             
 
 if __name__ == '__main__':
-    #namefolders=['BMD-Esophagus','BMD-Aorta','BMD-Heart','BMD-Trachea']
-    dirpatients='/Users/trullro/Downloads/patient_test/'
+    #namefolders=['BMD-Esophagus','BMD-Heart','BMD-Trachea','BMD-Aorta']#This order will be saved the labels 1,2,3...
+    namefolders=['body']
+    dirpatients='/media/roger/48BCFC2BBCFC1562/dataset/BMD_OESO_BDD_30_60'
     #dicom2nii(dirpatients)
-    namefolders=['GT']
+    #namefolders=['GT']
     pngs2nii(dirpatients,namefolders)
+    #merge_labels(dirpatients)
